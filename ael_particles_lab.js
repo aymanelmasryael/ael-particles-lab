@@ -217,44 +217,160 @@ const ARABIC_MAP = {
   'أثير':99,'روح':99,'قلب':100,'مركز':100,'جاذبية':2
 };
 
-const STOP_WORDS = new Set(['the','a','an','i','you','he','she','it','we','they','me','my','your','his','her','its','our','their','this','that','these','those','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','can','could','shall','should','may','might','must','in','on','at','to','for','with','by','from','up','of','about','into','over','after','before','between','under','above','and','but','or','not','no','so','if','than','as','very','just','like','some','any','all','both','each','more','most','other','such','what','which','who','whom','why','how','want','need','make','create','get','let','something','particle','that']);
-
-function promptToParticle(text) {
-  const words = text.toLowerCase().replace(/[.,!?;:'"()\[\]{}]/g,'').split(/\s+/).filter(w => w.length > 1 && !STOP_WORDS.has(w));
-  if (!words.length) return null;
-
-  const scores = new Map();
-  for (const word of words) {
-    const eng = PROMPT_MAP[word];
-    if (eng) scores.set(eng, (scores.get(eng)||0) + 3);
-    const arb = ARABIC_MAP[word];
-    if (arb) scores.set(arb, (scores.get(arb)||0) + 3);
-
-    for (const p of taxonomyData) {
-      let match = 0;
-      if (p.name.toLowerCase().includes(word)) match += 2;
-      if (p.layer.toLowerCase().includes(word)) match += 2;
-      if (match && scores.has(p.id)) scores.set(p.id, scores.get(p.id) + match);
-      else if (match) scores.set(p.id, match);
-    }
+// === GENERATIVE ENGINE ===
+class GeneratedParticleType {
+  constructor() {
+    this.name = 'Custom Particle';
+    this.shape = 'rect';
+    this.color1 = '#0074FF';
+    this.color2 = null;
+    this.colorMode = 'solid';
+    this.speed = 1;
+    this.size = [1.5, 3];
+    this.behavior = 'gravity';
+    this.fade = false;
+    this.glow = false;
+    this.respawn = false;
+    this.flutter = 0;
+    this.teleport = 0;
+    this.count = 4000;
   }
-
-  let bestId = 0, bestScore = 0;
-  for (const [id, score] of scores) {
-    if (score > bestScore) { bestScore = score; bestId = id; }
-  }
-  return bestId ? taxonomyData.find(p => p.id === bestId) : null;
 }
 
-function selectParticleById(id) {
-  const items = document.querySelectorAll('.particle-item');
-  const el = items[id - 1];
-  if (!el) return showToast('Error: item not found');
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  selectParticle(id, el);
-  el.style.transition = 'background 0.1s';
-  el.style.background = 'rgba(0,255,204,0.3)';
-  setTimeout(() => { el.style.background = ''; }, 300);
+let generatedConfig = null;
+
+function lerpColor(c1, c2, t) {
+  const h = (s) => parseInt(s, 16);
+  const r1 = h(c1.slice(1,3)), g1 = h(c1.slice(3,5)), b1 = h(c1.slice(5,7));
+  const r2 = h(c2.slice(1,3)), g2 = h(c2.slice(3,5)), b2 = h(c2.slice(5,7));
+  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+}
+
+function parsePrompt(prompt) {
+  const p = new GeneratedParticleType();
+  const lower = prompt.toLowerCase();
+  const words = lower.split(/\s+/);
+
+  // Extract a name: capitalize first meaningful word, append "Particle"
+  const nameWord = words.find(w => w.length > 3 && !['the','this','that','with','from','very','just','some','want','need','make','create','get','let'].includes(w));
+  p.name = nameWord ? nameWord.charAt(0).toUpperCase() + nameWord.slice(1) + ' Particle' : 'Custom Particle';
+
+  // Shape
+  if (/round|circle|ball|sphere|orb/i.test(lower)) p.shape = 'circle';
+  else if (/square|box|cube|block|brick/i.test(lower)) p.shape = 'rect';
+  else if (/diamond|gem|crystal|diamond/i.test(lower)) p.shape = 'diamond';
+  else if (/triangle|arrow|cone|pyramid/i.test(lower)) p.shape = 'triangle';
+  else if (/streak|line|stream|shooting|strea/i.test(lower)) p.shape = 'streak';
+
+  // Color
+  if (/red|crimson|scarlet|blood|أحمر|احمر/i.test(lower)) p.color1 = '#ff2020';
+  else if (/blue|azure|sky|navy|أزرق|ازرق/i.test(lower)) p.color1 = '#0088ff';
+  else if (/green|emerald|verdant|أخضر|اخضر/i.test(lower)) p.color1 = '#00cc66';
+  else if (/yellow|gold|amber|أصفر|اصفر/i.test(lower)) p.color1 = '#ffcc00';
+  else if (/purple|violet|بنفسجي/i.test(lower)) p.color1 = '#a020f0';
+  else if (/pink|وردي|وردى/i.test(lower)) p.color1 = '#ff69b4';
+  else if (/orange|برتقالي/i.test(lower)) p.color1 = '#ff8800';
+  else if (/white|أبيض|ابيض/i.test(lower)) p.color1 = '#ffffff';
+  else if (/cyan|aqua|سماوي/i.test(lower)) p.color1 = '#00ffcc';
+  else if (/dark|black|أسود|اسود/i.test(lower)) p.color1 = '#445566';
+
+  // Multi-color
+  if (/rainbow|multicolor|colorful|قوس/i.test(lower)) p.colorMode = 'rainbow';
+  if (/gradient|interpolat|transition/i.test(lower)) { p.colorMode = 'dynamic'; p.color2 = p.color1 === '#0074FF' ? '#00ffcc' : '#0074FF'; }
+  if (/pulse|pulsing|heartbeat|نبض/i.test(lower)) { p.colorMode = 'pulse'; p.color2 = '#ffffff'; }
+
+  // Glow
+  if (/glow|glowing|bright|shining|luminous|radiant|مضيء|مضىء/i.test(lower)) p.glow = true;
+  if (/dark|ظلام/i.test(lower)) p.glow = false;
+
+  // Speed
+  if (/fast|quick|rapid|speed|swift|سريع/i.test(lower)) p.speed = 3;
+  else if (/slow|gentle|calm|leisurely|بطيء/i.test(lower)) p.speed = 0.4;
+  else if (/medium|moderate|average|متوسط/i.test(lower)) p.speed = 1;
+
+  // Size
+  if (/big|large|huge|giant|enormous|massive|كبير|ضخم/i.test(lower)) p.size = [4, 8];
+  else if (/small|tiny|micro|little|minute|صغير/i.test(lower)) p.size = [0.8, 1.5];
+  else if (/medium|moderate|average|متوسط/i.test(lower)) p.size = [2, 4];
+
+  // Behavior
+  if (/gravity|fall|falling|dropping|drop|سقوط|وقع/i.test(lower)) p.behavior = 'gravity';
+  else if (/bounce|bouncing|ارتداد/i.test(lower)) p.behavior = 'bounce';
+  else if (/follow|chase|seek|pursue|track|اتبع|طارد/i.test(lower)) p.behavior = 'follow';
+  else if (/avoid|flee|escape|run|اهرب|هرب/i.test(lower)) p.behavior = 'avoid';
+  else if (/wander|random|aimless|drift|عشوائي/i.test(lower)) p.behavior = 'wander';
+  else if (/flock|swarm|group|boid|سرب|مجموعة/i.test(lower)) p.behavior = 'flock';
+  else if (/sine|wave|flutter|butterfly|فراشة/i.test(lower)) p.behavior = 'sine';
+  else if (/spiral|حلزوني| spiral/i.test(lower)) p.behavior = 'spiral';
+  else if (/orbit|circle|circular|حول|يدور/i.test(lower)) p.behavior = 'orbit';
+  else if (/float|rise|upward|buoyant|ارتفاع/i.test(lower)) p.behavior = 'float';
+  else if (/explode|explosion|burst|انفجار/i.test(lower)) p.behavior = 'explode';
+
+  // Effects
+  if (/fade|fading|vanish|تلاشى/i.test(lower)) p.fade = true;
+  if (/respawn|reappear|return|reborn|ظهور/i.test(lower)) p.respawn = true;
+  if (/teleport|jump|warp|quantum/i.test(lower)) p.teleport = 0.06;
+  if (/butterfly|flutter|flapping|رفرفة/i.test(lower)) p.flutter = 2;
+
+  // Element presets (override)
+  if (/fire|flame|burning|blaze|نار|لهب/i.test(lower)) {
+    p.color1 = '#ff4400'; p.color2 = '#ffcc00'; p.behavior = 'float'; p.fade = true; p.respawn = true; p.glow = true; p.size = [2, 5]; if (!/slow|بطيء/i.test(lower)) p.speed = 0.8; if (lower.includes('big')||lower.includes('large')||lower.includes('كبير')||lower.includes('ضخم')) p.size = [4, 10];
+  }
+  if (/water|liquid|fluid|ماء|سائل|مائع/i.test(lower)) {
+    p.color1 = '#0088ff'; p.color2 = '#00ccff'; p.behavior = 'sine'; p.size = [2, 4]; if (/wave|موجة/i.test(lower)) { p.colorMode = 'dynamic'; }
+  }
+  if (/smoke|دخان/i.test(lower)) {
+    p.color1 = '#666666'; p.color2 = '#999999'; p.shape = 'circle'; p.behavior = 'wander'; p.fade = true; p.respawn = true; p.speed = 0.5; p.size = [3, 6];
+  }
+  if (/light|illumination|beam|ضوء/i.test(lower)) {
+    p.color1 = '#ffffaa'; p.color2 = '#ffffff'; p.glow = true; p.size = [3, 6]; p.shape = 'circle';
+  }
+  if (/shadow|ظل| shade/i.test(lower)) {
+    p.color1 = '#222244'; p.fade = true;
+  }
+  if (/wind|breeze|رياح|نسيم/i.test(lower)) {
+    p.color1 = '#aaaaaa'; p.color2 = '#cccccc'; p.behavior = 'bounce'; p.speed = 4; p.shape = 'streak';
+  }
+  if (/magic|sorcery|spell|سحر/i.test(lower)) {
+    p.color1 = '#ff69b4'; p.color2 = '#a020f0'; p.colorMode = 'rainbow'; p.glow = true; p.behavior = 'wander'; p.flutter = 1;
+  }
+  if (/ice|frost|snow|cold|ثلج|جليد/i.test(lower)) {
+    p.color1 = '#aaddff'; p.color2 = '#ffffff'; p.glow = true; p.size = [1, 3]; p.behavior = 'float'; p.speed = 0.6;
+  }
+  if (/lightning|electric|thunder|bolt|برق/i.test(lower)) {
+    p.color1 = '#00ffff'; p.color2 = '#ffffff'; p.speed = 5; p.behavior = 'wander'; p.teleport = 0.1; p.glow = true;
+  }
+
+  // Particle count
+  if (/thousands|many|lots|كثير/i.test(lower)) p.count = 8000;
+  else if (/few|sparse|handful|قليل/i.test(lower)) p.count = 1000;
+  else p.count = 4000;
+
+  return p;
+}
+
+function addGeneratedToTaxonomy(config) {
+  buildTaxonomy();
+  const list = document.getElementById('particle-list');
+  const header = document.createElement('div');
+  header.className = "category-header text-xs font-bold mt-0 mb-2 pl-3 border-l-2 py-1.5 rounded-r shadow-sm tech-font";
+  header.style.color = '#00ffcc'; header.style.borderLeftColor = '#00ffcc'; header.style.background = 'rgba(0,255,204,0.12)';
+  header.innerText = '[ ⚡ GENERATED ]';
+  list.insertBefore(header, list.firstChild);
+  const item = document.createElement('div');
+  item.className = "particle-item px-3 py-2 mb-1 rounded text-[11px] tech-flex";
+  item.innerHTML = `<span class="opacity-70 w-8 inline-block text-[#00ffcc] shrink-0">⚡</span><span class="font-semibold text-right flex-1 truncate" style="color:#00ffcc">${config.name}</span>`;
+  item.onclick = () => {
+    document.querySelectorAll('.particle-item').forEach(el => el.classList.remove('active'));
+    item.classList.add('active');
+    generatedConfig = config;
+    initGenerated(config);
+    document.getElementById('hud-id').innerText = 'GEN';
+    document.getElementById('hud-name').innerText = config.name;
+    document.getElementById('hud-layer').innerText = '⚡ GENERATED';
+  };
+  list.insertBefore(item, list.firstChild);
+  item.click();
 }
 
 function handleGenerate() {
@@ -262,14 +378,9 @@ function handleGenerate() {
   const text = input.value.trim();
   if (!text) return;
   document.getElementById('taxonomy-search').value = '';
-  buildTaxonomy();
-  const result = promptToParticle(text);
-  if (result) {
-    selectParticleById(result.id);
-    showToast(`⚡ ${result.name}`);
-  } else {
-    showToast('No match. Try different words.');
-  }
+  const config = parsePrompt(text);
+  generatedConfig = config;
+  addGeneratedToTaxonomy(config);
 }
 
 document.getElementById('prompt-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleGenerate(); });
@@ -484,6 +595,160 @@ class HybridParticle {
   }
 }
 
+// === METAPARTICLE (GENERATED) ===
+class MetaParticle {
+  constructor(w, h, cfg) {
+    this.x = Math.random() * w;
+    this.y = Math.random() * h;
+    this.vx = (Math.random() - 0.5) * cfg.speed * 1.5;
+    this.vy = (Math.random() - 0.5) * cfg.speed * 1.5;
+    this.size = cfg.size[0] + Math.random() * (cfg.size[1] - cfg.size[0]);
+    this.life = 1;
+    this.angle = Math.random() * Math.PI * 2;
+    this.age = 0;
+    this.config = cfg;
+  }
+
+  update(w, h, mouse) {
+    const cfg = this.config;
+    this.age++;
+    this.vx *= 0.98;
+    this.vy *= 0.98;
+
+    switch(cfg.behavior) {
+      case 'gravity':
+        this.vy += 0.15 * cfg.speed; this.x += this.vx; this.y += this.vy;
+        if (this.y > h) { this.y = h; this.vy *= -0.5; }
+        if (this.x < 0 || this.x > w) this.vx *= -1;
+        break;
+      case 'bounce':
+        this.vy += 0.1 * cfg.speed; this.x += this.vx; this.y += this.vy;
+        if (this.y > h || this.y < 0) { this.y = this.y < 0 ? 0 : h; this.vy *= -0.7; }
+        if (this.x < 0 || this.x > w) this.vx *= -1;
+        break;
+      case 'follow':
+        const dx = mouse.x - this.x, dy = mouse.y - this.y, d = Math.sqrt(dx*dx+dy*dy);
+        if (d < 250 && d > 5) { this.vx += (dx/d) * 0.3 * cfg.speed; this.vy += (dy/d) * 0.3 * cfg.speed; }
+        this.vx = Math.max(-5, Math.min(5, this.vx)); this.vy = Math.max(-5, Math.min(5, this.vy));
+        this.x += this.vx; this.y += this.vy;
+        break;
+      case 'avoid':
+        const dx2 = mouse.x - this.x, dy2 = mouse.y - this.y, d2 = Math.sqrt(dx2*dx2+dy2*dy2);
+        if (d2 < 150 && d2 > 1) { this.vx -= (dx2/d2) * 0.5 * cfg.speed; this.vy -= (dy2/d2) * 0.5 * cfg.speed; }
+        this.x += this.vx; this.y += this.vy;
+        break;
+      case 'sine':
+        this.angle += 0.03 * cfg.speed;
+        this.vx = Math.sin(this.y * 0.02 + this.angle) * 1.5;
+        this.vy = Math.cos(this.angle) * 0.5;
+        this.x += this.vx; this.y += this.vy;
+        if (this.y < 0 || this.y > h) this.vy *= -1;
+        break;
+      case 'wander':
+        if (Math.random() < 0.02) { this.vx += (Math.random()-0.5) * 0.5 * cfg.speed; this.vy += (Math.random()-0.5) * 0.5 * cfg.speed; }
+        this.x += this.vx; this.y += this.vy;
+        break;
+      case 'float':
+        this.vy -= 0.04 * cfg.speed; this.x += this.vx * 0.5; this.y += this.vy;
+        if (this.y < 0) this.y = h;
+        break;
+      case 'spiral':
+        this.angle += 0.02 * cfg.speed;
+        this.x += Math.cos(this.angle) * 0.8 * cfg.speed; this.y += Math.sin(this.angle) * 0.8 * cfg.speed;
+        break;
+      case 'orbit':
+        const cx = w/2, cy = h/2, ddx = this.x - cx, ddy = this.y - cy, dist = Math.sqrt(ddx*ddx+ddy*ddy) || 1;
+        this.vx += -ddy/dist * 0.1 * cfg.speed; this.vy += ddx/dist * 0.1 * cfg.speed;
+        this.x += this.vx; this.y += this.vy;
+        break;
+      case 'explode':
+        this.x += this.vx * cfg.speed * 3; this.y += this.vy * cfg.speed * 3; this.vx *= 0.97; this.vy *= 0.97;
+        break;
+      case 'flock':
+        this.vx += (Math.random()-0.5) * 0.15 * cfg.speed; this.vy += (Math.random()-0.5) * 0.15 * cfg.speed;
+        this.x += this.vx; this.y += this.vy;
+        break;
+    }
+
+    if (cfg.flutter) {
+      this.vx += Math.sin(this.age * 0.1) * cfg.flutter * 0.12;
+      this.vy += Math.cos(this.age * 0.13) * cfg.flutter * 0.12;
+    }
+
+    this.x = Math.max(-10, Math.min(w + 10, this.x));
+    this.y = Math.max(-10, Math.min(h + 10, this.y));
+
+    if (cfg.fade) {
+      this.life -= 0.005 * cfg.speed;
+      if (this.life <= 0) {
+        if (cfg.respawn) {
+          this.x = Math.random() * w; this.y = Math.random() * h;
+          this.vx = (Math.random()-0.5) * cfg.speed; this.vy = (Math.random()-0.5) * cfg.speed;
+          this.life = 1; this.size = cfg.size[0] + Math.random() * (cfg.size[1] - cfg.size[0]);
+        } else { this.life = 0.01; }
+      }
+    }
+
+    if (cfg.teleport && Math.random() < cfg.teleport) {
+      this.x = Math.random() * w; this.y = Math.random() * h;
+    }
+  }
+
+  draw(ctx) {
+    const cfg = this.config;
+    let color = cfg.color1;
+
+    if (cfg.colorMode === 'dynamic' && cfg.color2) {
+      color = lerpColor(cfg.color1, cfg.color2, 1 - this.life);
+    } else if (cfg.colorMode === 'rainbow') {
+      color = `hsl(${(this.age * 0.5) % 360}, 100%, 60%)`;
+    } else if (cfg.colorMode === 'pulse' && cfg.color2) {
+      const t = (Math.sin(this.age * 0.05) + 1) / 2;
+      color = lerpColor(cfg.color1, cfg.color2, t);
+    }
+
+    if (cfg.glow) {
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.shadowColor = color; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(this.x, this.y, this.size * 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = color;
+    const s = this.size, x = this.x, y = this.y;
+
+    switch(cfg.shape) {
+      case 'circle':
+        ctx.beginPath(); ctx.arc(x, y, s / 2, 0, Math.PI * 2); ctx.fill(); break;
+      case 'diamond':
+        ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.fillRect(-s/2, -s/2, s, s); ctx.restore(); break;
+      case 'triangle':
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(this.angle) * s, y + Math.sin(this.angle) * s);
+        ctx.lineTo(x + Math.cos(this.angle + 2.4) * s, y + Math.sin(this.angle + 2.4) * s);
+        ctx.lineTo(x + Math.cos(this.angle - 2.4) * s, y + Math.sin(this.angle - 2.4) * s);
+        ctx.closePath(); ctx.fill(); break;
+      case 'streak':
+        ctx.fillRect(x - s * 0.6, y - 0.8, s * 1.2, 2); break;
+      default:
+        ctx.fillRect(x, y, s, s);
+    }
+  }
+}
+
+function initGenerated(config) {
+  engineConfig.layer = "⚡ Generated";
+  engineConfig.count = config.count;
+  particles = new Array(config.count);
+  for (let i = 0; i < config.count; i++) {
+    particles[i] = new MetaParticle(canvas.width, canvas.height, config);
+  }
+  document.getElementById('hud-count').innerText = config.count.toLocaleString();
+  document.querySelector('meta[name="theme-color"]').content = '#00ffcc';
+  document.querySelector('.sovereign-block pre').style.borderColor = 'rgba(0,255,204,0.3)';
+}
+
 // === BACKGROUND EFFECTS ===
 function drawBackground(layer) {
   const profile = LAYER_PROFILE[layer];
@@ -623,6 +888,18 @@ function drawBackground(layer) {
   }
 }
 
+// === GENERATED BACKGROUND ===
+function drawGeneratedBackground() {
+  const w = canvas.width, h = canvas.height;
+  bgTime += 0.016;
+  ctx.fillStyle = 'rgba(0,255,204,0.015)';
+  for (let i = 0; i < 8; i++) {
+    const x = ((i * 137 + bgTime * 15) % w);
+    const y = ((i * 251 + bgTime * 10) % h);
+    ctx.fillRect(x, y, 1, 1);
+  }
+}
+
 // === ENGINE ===
 function initEngine(layer) {
   engineConfig.layer = layer;
@@ -697,26 +974,36 @@ function drawFPSChart(fps) {
 }
 
 function animate() {
-  const profile = LAYER_PROFILE[engineConfig.layer] || LAYER_PROFILE["Physics"];
+  const isGen = engineConfig.layer === "⚡ Generated";
 
-  if (profile.clear === "clear") {
-    ctx.fillStyle = '#03060c';
+  if (isGen) {
+    ctx.fillStyle = 'rgba(2, 3, 5, 0.2)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawGeneratedBackground();
+    const w = canvas.width, h = canvas.height;
+    const len = particles.length;
+    for (let i = 0; i < len; i++) {
+      particles[i].update(w, h, mouse);
+      particles[i].draw(ctx);
+    }
   } else {
-    ctx.fillStyle = 'rgba(2, 3, 5, 0.25)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const profile = LAYER_PROFILE[engineConfig.layer] || LAYER_PROFILE["Physics"];
+    if (profile.clear === "clear") {
+      ctx.fillStyle = '#03060c';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = 'rgba(2, 3, 5, 0.25)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    drawBackground(engineConfig.layer);
+    const layer = engineConfig.layer;
+    const len = particles.length;
+    for (let i = 0; i < len; i++) {
+      particles[i].update(layer);
+      particles[i].draw(ctx, layer);
+    }
+    drawConnections();
   }
-
-  drawBackground(engineConfig.layer);
-
-  const layer = engineConfig.layer;
-  const len = particles.length;
-  for (let i = 0; i < len; i++) {
-    particles[i].update(layer);
-    particles[i].draw(ctx, layer);
-  }
-
-  drawConnections();
 
   frames++;
   const now = performance.now();
