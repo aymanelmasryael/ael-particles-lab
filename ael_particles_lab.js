@@ -155,6 +155,126 @@ document.getElementById('taxonomy-search').addEventListener('input', (e) => {
   buildTaxonomy(e.target.value.trim());
 });
 
+// === PROMPT › PARTICLE ===
+const PROMPT_MAP = {
+  'gravity':2,'gravitational':2,'fall':2,'falling':2,'weight':2,'heaviness':2,
+  'bounce':6,'bouncing':6,'collision':4,'collide':4,'crash':4,'impact':4,
+  'friction':5,'drag':7,'resistance':7,'mass':8,'heavy':8,'velocity':9,'speed':9,
+  'fast':9,'quick':9,'accelerate':10,'acceleration':10,'thrust':10,
+  'visual':11,'sprite':11,'image':11,'graphic':11,'mesh':12,'ribbon':13,'trail':13,
+  'decal':14,'sticker':14,'light':15,'shadow':16,'dark':16,'glow':17,'shine':17,
+  'emissive':17,'refract':18,'refraction':18,'prism':18,'volumetric':19,'volume':19,
+  'fog':19,'opacity':20,'fade':20,'transparent':20,'alpha':20,'see':20,
+  'fractal':21,'infinity':21,'noise':22,'perlin':22,'static':22,'sine':23,'wave':23,
+  'oscillate':23,'vector':24,'direction':24,'matrix':25,'grid':25,'array':25,
+  'quaternion':26,'rotate':26,'rotation':26,'spline':27,'curve':27,'path':27,
+  'chaos':28,'random':28,'entropy':28,'fibonacci':29,'spiral':29,'golden':29,
+  'voronoi':30,'cell':30,'honeycomb':30,
+  'boid':31,'bird':31,'flock':31,'seek':32,'chase':32,'pursue':32,'follow':32,
+  'hunt':32,'flee':33,'run':33,'escape':33,'avoid':33,'wander':34,'drift':34,
+  'roam':34,'pathfind':35,'navigation':35,'swarm':36,'insect':36,'flocking':37,
+  'group':37,'herd':37,'predator':38,'hunt':38,'prey':39,'avoidance':40,
+  'liquid':41,'water':41,'fluid':41,'flow':41,'gas':42,'air':42,'puff':42,
+  'plasma':43,'energy':43,'smoke':44,'cloud':44,'mist':44,'fire':45,'flame':45,
+  'burn':45,'burning':45,'steam':46,'vapor':46,'vortex':47,'whirl':47,'tornado':47,
+  'viscosity':48,'thick':48,'honey':48,'buoyancy':49,'float':49,'rise':49,
+  'turbulence':50,'chaotic':50,'storm':50,'turbulent':50,
+  'compute':51,'gpu':51,'parallel':51,'buffer':52,'cache':52,'thread':53,
+  'instanced':54,'instance':54,'shader':55,'glsl':55,'pixel':55,'voxel':56,
+  'block':56,'raycast':57,'ray':57,'culling':58,'frustum':58,'atlas':59,
+  'texture':59,'transform':60,'matrix':60,
+  'spawn':61,'birth':61,'create':61,'generate':61,'lifetime':62,'age':62,
+  'aging':62,'decay':63,'rot':63,'decompose':63,'death':64,'die':64,'kill':64,
+  'mutation':65,'mutate':65,'change':65,'evolution':66,'evolve':66,'adapt':66,
+  'stasis':67,'pause':67,'still':67,'frozen':67,'loop':68,'cycle':68,'repeat':68,
+  'trigger':69,'event':69,'activate':69,'delay':70,'wait':70,'hold':70,
+  'wind':71,'breeze':71,'blow':71,'magnetism':72,'magnet':72,'magnetic':72,
+  'attract':72,'repulsion':73,'repel':73,'push':73,'attraction':74,'pull':74,
+  'field':75,'force':75,'boundary':76,'wall':76,'edge':76,'surface':77,'skin':77,
+  'weather':78,'rain':78,'snow':78,'sound':79,'audio':79,'vibrate':79,
+  'pressure':80,'compress':80,
+  'anchor':81,'pin':81,'fix':81,'constraint':82,'limit':82,'spring':83,
+  'elastic':83,'stretch':83,'hinge':84,'door':84,'chain':85,'link':85,
+  'web':86,'spider':86,'network':86,'lattice':87,'honeycomb':87,'cloth':88,
+  'fabric':88,'softbody':89,'jelly':89,'squish':89,'rigidbody':90,'rigid':90,
+  'solid':90,'hard':90,
+  'sovereign':91,'ruler':91,'king':91,'supreme':91,'quantum':92,'subatomic':92,
+  'entanglement':93,'entangled':93,'pair':93,'tachyon':94,'time':94,'faster':94,
+  'paradox':95,'contradiction':95,'void':97,'empty':97,'nothing':97,'nexus':98,
+  'core':100,'center':100,'heart':100,'aura':99,'glow':99,'halo':99
+};
+
+const ARABIC_MAP = {
+  'جاذبية':2,'جذب':2,'وزن':8,'وقوع':2,'سقوط':2,'ارتداد':6,'تصادم':4,
+  'ضوء':15,'نور':15,'ظل':16,'توهج':17,'إشعاع':17,'شفاف':20,
+  'نار':45,'لهب':45,'حريق':45,'دخان':44,'ماء':41,'سائل':41,'بخار':46,
+  'رياح':71,'عاصفة':78,'موجة':23,'صوت':79,'ضغط':80,
+  'عشوائي':28,'فوضى':28,'عشوائية':28,
+  'سرب':36,'طير':31,'طيور':31,'مجموعة':37,
+  'موت':64,'حياة':61,'ولادة':61,'نشأة':61,'تطور':66,'تغير':65,
+  'كم':92,'كوانتم':92,'ثقب':97,'فراغ':97,
+  'مرن':83,'مطاط':83,'صلب':90,'جامد':90,'قماش':88,'نسيج':88,
+  'أثير':99,'روح':99,'قلب':100,'مركز':100,'جاذبية':2
+};
+
+const STOP_WORDS = new Set(['the','a','an','i','you','he','she','it','we','they','me','my','your','his','her','its','our','their','this','that','these','those','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','can','could','shall','should','may','might','must','in','on','at','to','for','with','by','from','up','of','about','into','over','after','before','between','under','above','and','but','or','not','no','so','if','than','as','very','just','like','some','any','all','both','each','more','most','other','such','what','which','who','whom','why','how','want','need','make','create','get','let','something','particle','that']);
+
+function promptToParticle(text) {
+  const words = text.toLowerCase().replace(/[.,!?;:'"()\[\]{}]/g,'').split(/\s+/).filter(w => w.length > 1 && !STOP_WORDS.has(w));
+  if (!words.length) return null;
+
+  const scores = new Map();
+  for (const word of words) {
+    const eng = PROMPT_MAP[word];
+    if (eng) scores.set(eng, (scores.get(eng)||0) + 3);
+    const arb = ARABIC_MAP[word];
+    if (arb) scores.set(arb, (scores.get(arb)||0) + 3);
+
+    for (const p of taxonomyData) {
+      let match = 0;
+      if (p.name.toLowerCase().includes(word)) match += 2;
+      if (p.layer.toLowerCase().includes(word)) match += 2;
+      if (match && scores.has(p.id)) scores.set(p.id, scores.get(p.id) + match);
+      else if (match) scores.set(p.id, match);
+    }
+  }
+
+  let bestId = 0, bestScore = 0;
+  for (const [id, score] of scores) {
+    if (score > bestScore) { bestScore = score; bestId = id; }
+  }
+  return bestId ? taxonomyData.find(p => p.id === bestId) : null;
+}
+
+function selectParticleById(id) {
+  const items = document.querySelectorAll('.particle-item');
+  const el = items[id - 1];
+  if (!el) return showToast('Error: item not found');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  selectParticle(id, el);
+  el.style.transition = 'background 0.1s';
+  el.style.background = 'rgba(0,255,204,0.3)';
+  setTimeout(() => { el.style.background = ''; }, 300);
+}
+
+function handleGenerate() {
+  const input = document.getElementById('prompt-input');
+  const text = input.value.trim();
+  if (!text) return;
+  document.getElementById('taxonomy-search').value = '';
+  buildTaxonomy();
+  const result = promptToParticle(text);
+  if (result) {
+    selectParticleById(result.id);
+    showToast(`⚡ ${result.name}`);
+  } else {
+    showToast('No match. Try different words.');
+  }
+}
+
+document.getElementById('prompt-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleGenerate(); });
+document.getElementById('prompt-generate').onclick = handleGenerate;
+
 // === PRESET SYSTEM ===
 function savePreset() {
   const data = JSON.stringify({ layer: engineConfig.layer });
