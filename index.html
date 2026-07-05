@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>AEL PARTICLES LAB v3.0 — Sovereign Edition</title>
+    <meta name="description" content="AEL Particles Lab v3.0: High-density particle simulation engine with 100 taxonomy classes, 10 physics layers, and real-time rendering. Built by Ayman Elmasry — AEL Digital Studio.">
+    <meta name="author" content="Ayman Elmasry — AEL Digital Studio">
+    <meta name="theme-color" content="#0074FF">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://aymanelmasryael.github.io/ael-particles-lab/">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "AEL Particles Lab v3.0",
+        "description": "High-density particle simulation engine with 100 taxonomy classes and real-time rendering.",
+        "author": {
+            "@type": "Person",
+            "name": "Ayman Elmasry",
+            "url": "https://www.aymanelmasry.com"
+        },
+        "applicationCategory": "Multimedia"
+    }
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #03060c;
+            color: #00ffcc;
+            font-family: 'Cairo', 'Share Tech Mono', monospace;
+            overflow: hidden;
+        }
+        .tech-font { font-family: 'Share Tech Mono', monospace; }
+
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(5, 10, 18, 0.9) 0%, rgba(2, 4, 8, 0.95) 100%);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 116, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 255, 204, 0.05);
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-left: 1px solid rgba(0, 116, 255, 0.1); }
+        ::-webkit-scrollbar-thumb { background: #0074FF; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ffcc; }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .scanline {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.25) 51%);
+            background-size: 100% 4px; pointer-events: none; z-index: 50; opacity: 0.5;
+        }
+
+        .particle-item {
+            cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 2px solid transparent;
+            background: rgba(0, 116, 255, 0.02);
+        }
+        .particle-item:hover {
+            background: rgba(0, 255, 204, 0.08);
+            border-left: 2px solid #00ffcc;
+            transform: translateX(2px);
+        }
+        .particle-item.active {
+            background: linear-gradient(90deg, rgba(0, 255, 204, 0.15) 0%, transparent 100%);
+            border-left: 3px solid #00ffcc;
+            border-right: 1px solid rgba(0, 255, 204, 0.3);
+            color: #fff;
+            text-shadow: 0 0 8px rgba(0,255,204,0.5);
+        }
+
+        .category-header { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px); }
+
+        .cyber-corners {
+            position: relative;
+        }
+        .cyber-corners::before, .cyber-corners::after {
+            content: ''; position: absolute; width: 10px; height: 10px; border: 2px solid #00ffcc; transition: all 0.3s;
+        }
+        .cyber-corners::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+        .cyber-corners::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+        .sovereign-hud {
+            height: 100%; display: flex; flex-direction: column; padding: 1.75rem 1.5rem;
+        }
+        .identity-header {
+            display: flex; align-items: center; gap: 16px; margin-bottom: 1.5rem;
+            border-bottom: 1px dashed rgba(0, 116, 255, 0.4); padding-bottom: 1.2rem;
+        }
+        .identity-header svg { filter: drop-shadow(0 0 6px rgba(0, 116, 255, 0.6)); flex-shrink: 0; }
+        .identity-header .title {
+            font-weight: 900; font-size: 1.15rem; letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #ffffff, #7ab3ff);
+            -webkit-background-clip: text; color: transparent;
+        }
+        .identity-header .sub { font-size: 0.68rem; font-family: monospace; color: #8aaee0; margin-top: 4px; }
+        .owner-name {
+            font-size: 1.5rem; font-weight: 700; letter-spacing: -0.2px;
+            background: linear-gradient(120deg, #ffffff, #b6d0ff);
+            -webkit-background-clip: text; color: transparent;
+            margin-top: 0.5rem; border-left: 3px solid #0074FF; padding-left: 14px;
+        }
+        .owner-title {
+            font-size: 0.75rem; line-height: 1.6; color: #8aaee0;
+            margin: 12px 0 20px 0; padding-left: 17px; font-family: monospace;
+        }
+        .sovereign-block {
+            background: rgba(1, 6, 14, 0.6); border-radius: 8px; padding: 0.8rem 1rem;
+            border: 1px solid rgba(0, 116, 255, 0.3); font-family: monospace; font-size: 0.75rem;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+        .sovereign-block summary { font-weight: 700; color: #00ffcc; cursor: pointer; outline: none; list-style: none; display: flex; align-items: center; gap: 8px; }
+        .sovereign-block summary::-webkit-details-marker { display: none; }
+        .sovereign-block summary::before { content: "🔓"; font-size: 0.85rem; }
+        details[open] summary::before { content: "🔒"; }
+        .sovereign-block pre {
+            background: #010204; padding: 14px; border-radius: 6px; margin-top: 12px;
+            border: 1px solid rgba(0, 116, 255, 0.2); color: #b9e0ff; font-size: 0.65rem;
+            overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+        }
+        .contact-links {
+            display: flex; gap: 1.5rem; margin-top: auto; padding-top: 1.2rem;
+            border-top: 1px solid rgba(0, 116, 255, 0.3); font-size: 0.75rem;
+        }
+        .contact-links a {
+            color: #7ab3ff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-family: monospace; transition: all 0.2s;
+        }
+        .contact-links a:hover { color: #00ffcc; text-shadow: 0 0 8px rgba(0, 255, 204, 0.5); transform: translateY(-2px); }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 5px rgba(0, 255, 204, 0.2); }
+            100% { box-shadow: 0 0 20px rgba(0, 255, 204, 0.4); }
+        }
+        .status-online {
+            animation: pulseGlow 2s infinite alternate;
+        }
+
+        @media (max-width: 1024px) {
+            .sovereign-hud { padding: 1rem; }
+            .identity-header .title { font-size: 0.9rem; }
+            .owner-name { font-size: 1.2rem; }
+        }
+        @media (max-width: 768px) {
+            main > aside { display: none; }
+            .cyber-corners { width: auto; }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col antialiased relative">
+
+    <div class="scanline"></div>
+
+    <!-- Header -->
+    <header class="h-16 glass-panel flex items-center justify-between px-6 z-20 border-b border-[#0074FF]/30 shrink-0">
+        <div class="flex items-center gap-4 text-left" dir="ltr">
+            <div class="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.6)]"></div>
+            <h1 class="text-xl font-black tracking-widest text-white tech-font">AEL PARTICLES LAB <span class="text-[11px] text-[#00ffcc] align-top">v3.0</span></h1>
+            <span class="px-2 py-1 bg-red-900/30 text-red-400 text-[10px] border border-red-500/40 tech-font rounded uppercase tracking-wider">Ω-Class Locked</span>
+        </div>
+        <div class="flex items-center gap-4" dir="ltr">
+            <span class="text-[10px] text-[#00ffcc] tech-font px-3 py-1 border border-[#00ffcc]/30 rounded bg-[#00ffcc]/10 status-online">STATUS: ONLINE</span>
+            <span class="text-xs text-[#7ab3ff] tech-font font-bold" id="sys-time">SYS_TIME: 00:00:00</span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden z-10">
+
+        <!-- Left Panel: Taxonomy -->
+        <aside class="w-72 glass-panel flex flex-col h-full border-t-0 border-l-0 z-20 shrink-0 border-r border-[#0074FF]/30" dir="ltr">
+            <div class="p-4 border-b border-[#0074FF]/20 bg-gradient-to-l from-[#0074FF]/10 to-transparent shrink-0">
+                <h2 class="text-sm font-bold text-white tracking-wider">COMPUTATIONAL TAXONOMY</h2>
+                <div class="flex justify-between items-center mt-2 text-[10px] tech-font text-gray-400">
+                    <span>INDEX</span>
+                    <span class="text-[#00ffcc]">TOTAL: 100</span>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto px-2 py-3" id="particle-list"></div>
+        </aside>
+
+        <!-- Center Panel: Rendering Engine -->
+        <section class="flex-1 relative flex flex-col bg-[#020305]">
+            <canvas id="particle-canvas"></canvas>
+
+            <!-- HUD Overlay -->
+            <div class="absolute top-5 left-5 glass-panel cyber-corners p-4 pointer-events-none rounded-sm" dir="ltr" style="width: auto; min-width: 220px;">
+                <h3 class="text-[11px] font-black text-white mb-3 tech-font border-b border-[#0074FF]/40 pb-2 tracking-widest">RENDER TELEMETRY</h3>
+                <div class="flex justify-between items-center text-[11px] mb-2 tech-font">
+                    <span class="text-gray-500">DOMAIN:</span>
+                    <span id="hud-layer" class="text-[#00ffcc] font-bold">Physics</span>
+                </div>
+                <div class="flex justify-between items-center text-[11px] mb-2 tech-font">
+                    <span class="text-gray-500">CLASS_ID:</span>
+                    <span id="hud-id" class="text-white bg-[#0074FF]/20 px-1 rounded">001</span>
+                </div>
+                <div class="flex justify-between items-center text-[11px] mb-3 tech-font">
+                    <span class="text-gray-500">ENTITY:</span>
+                    <span id="hud-name" class="text-[#7ab3ff] truncate text-right max-w-[120px]" style="direction: ltr;">Newtonian</span>
+                </div>
+                <div class="h-px bg-gradient-to-r from-[#0074FF]/40 via-transparent to-transparent my-3"></div>
+                <div class="flex justify-between items-center text-[11px] mb-2 tech-font">
+                    <span class="text-gray-500">PARTICLES:</span>
+                    <span id="hud-count" class="text-white font-bold tracking-wider">0</span>
+                </div>
+                <div class="flex justify-between items-center text-[11px] tech-font">
+                    <span class="text-gray-500">FPS:</span>
+                    <span id="hud-fps" class="text-[#00ffcc] font-bold">60</span>
+                </div>
+            </div>
+
+            <!-- Bottom Message -->
+            <div class="absolute bottom-5 right-5 max-w-md pointer-events-none text-left" dir="ltr">
+                <div class="glass-panel p-3 border-l-2 border-l-[#00ffcc] rounded text-[10px] text-[#7ab3ff] tech-font leading-relaxed shadow-lg">
+                    <span class="text-[#00ffcc] font-bold">[SYS]:</span> AEL Digital Framework™ v3.0 — High-Density Engine<br>
+                    <span class="text-gray-400">Batched micro-interactions · Real-time layer switching · Spatial grid optimized</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Sovereign Identity -->
+        <aside class="w-80 glass-panel h-full z-20 shrink-0 border-t-0 border-r-0 border-l border-[#0074FF]/30">
+            <div class="sovereign-hud">
+                <div class="identity-header">
+                    <svg viewBox="0 0 226.77 226.77" width="42" height="42">
+                        <path d="m97.19,48.59v16.2h-32.4v-16.2c0-8.94-7.25-16.2-16.2-16.2s-16.2,7.25-16.2,16.2v16.2H0v-16.2c0-5.68.98-11.13,2.76-16.2C9.44,13.52,27.44,0,48.59,0s39.16,13.52,45.83,32.4c1.79,5.07,2.76,10.52,2.76,16.2Z" fill="#ffffff"/>
+                        <rect y="97.19" width="32.4" height="32.4" fill="#0074FF"/><rect x="64.79" y="97.19" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="64.79" y="129.58" width="32.4" height="32.4" fill="#0074FF"/><rect y="129.58" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="129.58" y="97.19" width="32.4" height="32.4" fill="#0074FF"/><rect x="161.98" y="129.58" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="194.38" y="129.58" width="32.4" height="32.4" fill="#0074FF"/><rect x="129.58" y="129.58" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="129.58" width="32.4" height="32.4" fill="#0074FF"/><rect x="161.98" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="194.38" width="32.4" height="32.4" fill="#0074FF"/><rect x="129.58" y="32.4" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect y="194.38" width="32.4" height="32.4" fill="#0074FF"/><rect x="32.4" y="194.38" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="64.79" y="194.38" width="32.4" height="32.4" fill="#0074FF"/><rect x="97.19" y="194.38" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="129.58" y="194.38" width="32.4" height="32.4" fill="#0074FF"/><rect x="161.98" y="194.38" width="32.4" height="32.4" fill="#0074FF"/>
+                        <rect x="194.38" y="194.38" width="32.4" height="32.4" fill="#0074FF"/>
+                    </svg>
+                    <div>
+                        <div class="title">AEL DIGITAL</div>
+                        <div class="sub">Sovereign Identity Block v3.0</div>
+                    </div>
+                </div>
+                <div class="owner-name">AYMAN ELMASRY</div>
+                <div class="owner-title">
+                    <span class="text-white font-semibold">Computational Creative Director</span><br>
+                    AI Prompt Engineer<br>
+                    Founder of Ayman Elmasry LLC
+                </div>
+                <details class="sovereign-block" open>
+                    <summary>AEL Sovereign Seal</summary>
+                    <pre>{
+  "ael_seal": "AEL Digital Framework ©",
+  "owner": "Ayman Elmasry",
+  "entities": [
+    "Ayman Elmasry LLC (UAE)",
+    "AEL Advertising (Egypt)"
+  ],
+  "engine_core": "v3.0 Hybrid",
+  "auth": "Verified"
+}</pre>
+                </details>
+                <div class="contact-links">
+                    <a href="https://www.aymanelmasry.com" target="_blank">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                        aymanelmasry.com
+                    </a>
+                    <a href="mailto:info@aymanelmasry.com">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        Email
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <script>
+        // System Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('sys-time').innerText = `SYS_TIME: ${now.toTimeString().split(' ')[0]}`;
+        }, 1000);
+
+        // 100 Particles Taxonomy
+        const taxonomyData = [
+            { id: 1, name: "Newtonian Particle", layer: "Physics" }, { id: 2, name: "Gravity Particle", layer: "Physics" }, { id: 3, name: "Inertia Particle", layer: "Physics" }, { id: 4, name: "Collision Particle", layer: "Physics" }, { id: 5, name: "Friction Particle", layer: "Physics" }, { id: 6, name: "Bounce Particle", layer: "Physics" }, { id: 7, name: "Drag Particle", layer: "Physics" }, { id: 8, name: "Mass Particle", layer: "Physics" }, { id: 9, name: "Velocity Particle", layer: "Physics" }, { id: 10, name: "Acceleration Particle", layer: "Physics" },
+            { id: 11, name: "Sprite Particle", layer: "Visual" }, { id: 12, name: "Mesh Particle", layer: "Visual" }, { id: 13, name: "Ribbon Particle", layer: "Visual" }, { id: 14, name: "Decal Particle", layer: "Visual" }, { id: 15, name: "Light Particle", layer: "Visual" }, { id: 16, name: "Shadow Particle", layer: "Visual" }, { id: 17, name: "Emissive Particle", layer: "Visual" }, { id: 18, name: "Refraction Particle", layer: "Visual" }, { id: 19, name: "Volumetric Particle", layer: "Visual" }, { id: 20, name: "Opacity Particle", layer: "Visual" },
+            { id: 21, name: "Fractal Particle", layer: "Procedural" }, { id: 22, name: "Noise Particle", layer: "Procedural" }, { id: 23, name: "Sine Particle", layer: "Procedural" }, { id: 24, name: "Vector Particle", layer: "Procedural" }, { id: 25, name: "Matrix Particle", layer: "Procedural" }, { id: 26, name: "Quaternion Particle", layer: "Procedural" }, { id: 27, name: "Spline Particle", layer: "Procedural" }, { id: 28, name: "Chaos Particle", layer: "Procedural" }, { id: 29, name: "Fibonacci Particle", layer: "Procedural" }, { id: 30, name: "Voronoi Particle", layer: "Procedural" },
+            { id: 31, name: "Boid Particle", layer: "AI Behavioral" }, { id: 32, name: "Seek Particle", layer: "AI Behavioral" }, { id: 33, name: "Flee Particle", layer: "AI Behavioral" }, { id: 34, name: "Wander Particle", layer: "AI Behavioral" }, { id: 35, name: "Pathfinding Particle", layer: "AI Behavioral" }, { id: 36, name: "Swarm Particle", layer: "AI Behavioral" }, { id: 37, name: "Flocking Particle", layer: "AI Behavioral" }, { id: 38, name: "Predator Particle", layer: "AI Behavioral" }, { id: 39, name: "Prey Particle", layer: "AI Behavioral" }, { id: 40, name: "Avoidance Particle", layer: "AI Behavioral" },
+            { id: 41, name: "Liquid Particle", layer: "Fluid Dynamics" }, { id: 42, name: "Gas Particle", layer: "Fluid Dynamics" }, { id: 43, name: "Plasma Particle", layer: "Fluid Dynamics" }, { id: 44, name: "Smoke Particle", layer: "Fluid Dynamics" }, { id: 45, name: "Fire Particle", layer: "Fluid Dynamics" }, { id: 46, name: "Steam Particle", layer: "Fluid Dynamics" }, { id: 47, name: "Vortex Particle", layer: "Fluid Dynamics" }, { id: 48, name: "Viscosity Particle", layer: "Fluid Dynamics" }, { id: 49, name: "Buoyancy Particle", layer: "Fluid Dynamics" }, { id: 50, name: "Turbulence Particle", layer: "Fluid Dynamics" },
+            { id: 51, name: "Compute Particle", layer: "GPU Compute" }, { id: 52, name: "Buffer Particle", layer: "GPU Compute" }, { id: 53, name: "Thread Particle", layer: "GPU Compute" }, { id: 54, name: "Instanced Particle", layer: "GPU Compute" }, { id: 55, name: "Shader Particle", layer: "GPU Compute" }, { id: 56, name: "Voxel Particle", layer: "GPU Compute" }, { id: 57, name: "Raycast Particle", layer: "GPU Compute" }, { id: 58, name: "Culling Particle", layer: "GPU Compute" }, { id: 59, name: "Atlas Particle", layer: "GPU Compute" }, { id: 60, name: "Transform Particle", layer: "GPU Compute" },
+            { id: 61, name: "Spawn Particle", layer: "State Lifecycle" }, { id: 62, name: "Lifetime Particle", layer: "State Lifecycle" }, { id: 63, name: "Decay Particle", layer: "State Lifecycle" }, { id: 64, name: "Death Particle", layer: "State Lifecycle" }, { id: 65, name: "Mutation Particle", layer: "State Lifecycle" }, { id: 66, name: "Evolution Particle", layer: "State Lifecycle" }, { id: 67, name: "Stasis Particle", layer: "State Lifecycle" }, { id: 68, name: "Loop Particle", layer: "State Lifecycle" }, { id: 69, name: "Trigger Particle", layer: "State Lifecycle" }, { id: 70, name: "Delay Particle", layer: "State Lifecycle" },
+            { id: 71, name: "Wind Particle", layer: "Environment Forces" }, { id: 72, name: "Magnetism Particle", layer: "Environment Forces" }, { id: 73, name: "Repulsion Particle", layer: "Environment Forces" }, { id: 74, name: "Attraction Particle", layer: "Environment Forces" }, { id: 75, name: "Field Particle", layer: "Environment Forces" }, { id: 76, name: "Boundary Particle", layer: "Environment Forces" }, { id: 77, name: "Surface Particle", layer: "Environment Forces" }, { id: 78, name: "Weather Particle", layer: "Environment Forces" }, { id: 79, name: "Sound Particle", layer: "Environment Forces" }, { id: 80, name: "Pressure Particle", layer: "Environment Forces" },
+            { id: 81, name: "Anchor Particle", layer: "Hybrid Composite" }, { id: 82, name: "Constraint Particle", layer: "Hybrid Composite" }, { id: 83, name: "Spring Particle", layer: "Hybrid Composite" }, { id: 84, name: "Hinge Particle", layer: "Hybrid Composite" }, { id: 85, name: "Chain Particle", layer: "Hybrid Composite" }, { id: 86, name: "Web Particle", layer: "Hybrid Composite" }, { id: 87, name: "Lattice Particle", layer: "Hybrid Composite" }, { id: 88, name: "Cloth Particle", layer: "Hybrid Composite" }, { id: 89, name: "Softbody Particle", layer: "Hybrid Composite" }, { id: 90, name: "Rigidbody Particle", layer: "Hybrid Composite" },
+            { id: 91, name: "Sovereign Particle", layer: "Advanced Quantum" }, { id: 92, name: "Quantum Particle", layer: "Advanced Quantum" }, { id: 93, name: "Entanglement Particle", layer: "Advanced Quantum" }, { id: 94, name: "Tachyon Particle", layer: "Advanced Quantum" }, { id: 95, name: "Entropy Particle", layer: "Advanced Quantum" }, { id: 96, name: "Paradox Particle", layer: "Advanced Quantum" }, { id: 97, name: "Void Particle", layer: "Advanced Quantum" }, { id: 98, name: "Nexus Particle", layer: "Advanced Quantum" }, { id: 99, name: "Aura Particle", layer: "Advanced Quantum" }, { id: 100, name: "Core Particle", layer: "Advanced Quantum" }
+        ];
+
+        // Build Taxonomy UI
+        const listContainer = document.getElementById('particle-list');
+        let currentLayer = "";
+
+        taxonomyData.forEach(p => {
+            if (p.layer !== currentLayer) {
+                currentLayer = p.layer;
+                const header = document.createElement('div');
+                header.className = "category-header text-[#0074FF] text-xs font-bold mt-4 mb-2 pl-3 border-l-2 border-[#0074FF] tech-font bg-[#0074FF]/10 py-1.5 rounded-r shadow-sm";
+                header.innerText = `[ ${currentLayer.toUpperCase()} ]`;
+                listContainer.appendChild(header);
+            }
+            const item = document.createElement('div');
+            item.className = "particle-item px-3 py-2 mb-1 rounded text-[11px] text-gray-300 tech-font flex items-center justify-between";
+            item.innerHTML = `<span class="opacity-50 w-8 inline-block text-gray-500">${p.id.toString().padStart(3, '0')}</span> <span class="font-semibold text-right">${p.name}</span>`;
+            item.onclick = () => selectParticle(p.id, item);
+            listContainer.appendChild(item);
+        });
+
+        // === Hybrid Rendering Engine v3.0 ===
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let particles = [];
+        let engineConfig = { layer: "Physics", count: 0 };
+        let mouse = { x: -1000, y: -1000 };
+        let frames = 0;
+        let lastTime = performance.now();
+
+        function resize() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+        canvas.addEventListener('mouseleave', () => { mouse.x = -1000; mouse.y = -1000; });
+
+        class HybridParticle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.baseX = this.x;
+                this.baseY = this.y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.size = Math.random() < 0.85 ? 1.5 : 3;
+                this.life = Math.random();
+                this.angle = Math.random() * Math.PI * 2;
+                this.color = '#0074FF';
+            }
+
+            update(layer) {
+                const w = canvas.width, h = canvas.height;
+                switch(layer) {
+                    case "Physics":
+                        this.vy += 0.15;
+                        this.x += this.vx; this.y += this.vy;
+                        if (this.y > h) { this.y = h; this.vy *= -0.7; }
+                        if (this.x < 0 || this.x > w) this.vx *= -1;
+                        this.color = '#ff3366';
+                        break;
+                    case "Visual":
+                        this.life -= 0.008;
+                        if (this.life <= 0) { this.life = 1; this.x = Math.random()*w; this.y = Math.random()*h; }
+                        this.size = this.life * 4;
+                        this.color = `hsl(${180 + this.life * 60}, 100%, ${50 + this.life * 30}%)`;
+                        break;
+                    case "Procedural":
+                        this.angle += 0.04;
+                        this.x += Math.sin(this.angle) * 2;
+                        this.y += Math.cos(this.angle) * 2;
+                        this.color = '#a020f0';
+                        break;
+                    case "AI Behavioral":
+                        const dx = mouse.x - this.x;
+                        const dy = mouse.y - this.y;
+                        const distSq = dx*dx + dy*dy;
+                        if (distSq < 40000 && distSq > 0) {
+                            const dist = Math.sqrt(distSq);
+                            this.vx += (dx/dist) * 0.5;
+                            this.vy += (dy/dist) * 0.5;
+                        }
+                        this.vx *= 0.96; this.vy *= 0.96;
+                        this.x += this.vx; this.y += this.vy;
+                        this.color = '#ffcc00';
+                        break;
+                    case "Fluid Dynamics":
+                        this.angle += 0.03;
+                        this.vx = Math.sin(this.y * 0.015 + this.angle) * 0.8;
+                        this.vy = -Math.random() * 2 - 0.5;
+                        this.x += this.vx; this.y += this.vy;
+                        if (this.y < 0) this.y = h;
+                        this.color = '#0088ff';
+                        break;
+                    case "GPU Compute":
+                        this.x += (Math.round(this.baseX / 15) * 15 - this.x) * 0.15;
+                        this.y += (Math.round(this.baseY / 15) * 15 - this.y) * 0.15;
+                        this.baseX += (Math.random()-0.5) * 2;
+                        this.baseY += (Math.random()-0.5) * 2;
+                        this.color = '#00ffcc';
+                        break;
+                    case "State Lifecycle":
+                        this.size += 0.05;
+                        this.life -= 0.015;
+                        if (this.life <= 0) { this.life = 1; this.size = 1.5; this.x = Math.random()*w; this.y = Math.random()*h; }
+                        this.color = `rgba(255, 255, 255, ${this.life})`;
+                        break;
+                    case "Environment Forces":
+                        this.vx += 0.08;
+                        this.x += this.vx; this.y += this.vy;
+                        if (this.x > w) { this.x = 0; this.vx = 0; }
+                        this.color = '#cccccc';
+                        break;
+                    case "Hybrid Composite":
+                        this.x += this.vx; this.y += this.vy;
+                        if (this.x < 0 || this.x > w) this.vx *= -1;
+                        if (this.y < 0 || this.y > h) this.vy *= -1;
+                        this.color = '#ff8800';
+                        break;
+                    case "Advanced Quantum":
+                        if (Math.random() < 0.02) { this.x = Math.random()*w; this.y = Math.random()*h; }
+                        this.x += (Math.random() - 0.5) * 0.8;
+                        this.y += (Math.random() - 0.5) * 0.8;
+                        this.color = '#ffffff';
+                        break;
+                }
+                if (this.x !== undefined) {
+                    this.x = Math.max(-10, Math.min(w + 10, this.x));
+                    this.y = Math.max(-10, Math.min(h + 10, this.y));
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+            }
+        }
+
+        function initEngine(layer) {
+            engineConfig.layer = layer;
+            const countMap = {
+                "Physics": 4000, "Visual": 3000, "Procedural": 5000,
+                "AI Behavioral": 6000, "Fluid Dynamics": 8000, "GPU Compute": 10000,
+                "State Lifecycle": 3000, "Environment Forces": 4000,
+                "Hybrid Composite": 2000, "Advanced Quantum": 6000
+            };
+            engineConfig.count = countMap[layer] || 4000;
+            particles = new Array(engineConfig.count);
+            for (let i = 0; i < engineConfig.count; i++) {
+                particles[i] = new HybridParticle();
+            }
+            document.getElementById('hud-count').innerText = engineConfig.count.toLocaleString();
+        }
+
+        function selectParticle(id, element) {
+            document.querySelectorAll('.particle-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            const particle = taxonomyData.find(p => p.id === id);
+            if (particle) {
+                document.getElementById('hud-id').innerText = particle.id.toString().padStart(3, '0');
+                document.getElementById('hud-name').innerText = particle.name;
+                document.getElementById('hud-layer').innerText = particle.layer.toUpperCase();
+                initEngine(particle.layer);
+            }
+        }
+
+        // Connection lines cache (drawn only for Hybrid)
+        function drawConnections() {
+            if (engineConfig.layer !== "Hybrid Composite" || particles.length > 2500) return;
+            ctx.strokeStyle = 'rgba(255, 136, 0, 0.12)';
+            ctx.lineWidth = 0.8;
+            const threshold = 4000;
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    if (dx*dx + dy*dy < threshold) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(2, 3, 5, 0.25)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const layer = engineConfig.layer;
+            const len = particles.length;
+            for (let i = 0; i < len; i++) {
+                particles[i].update(layer);
+                particles[i].draw(ctx);
+            }
+
+            drawConnections();
+
+            frames++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                document.getElementById('hud-fps').innerText = frames;
+                frames = 0; lastTime = now;
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        window.onload = () => {
+            const firstItem = document.querySelector('.particle-item');
+            if (firstItem) selectParticle(1, firstItem);
+            animate();
+        };
+    </script>
+</body>
+</html>
