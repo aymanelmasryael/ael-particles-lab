@@ -33,7 +33,7 @@
   <text x="725" y="52" fill="#ef4444" font-family="monospace" font-size="9" font-weight="bold">ONLINE</text>
 
   <!-- Title -->
-  <text x="400" y="125" fill="#ffffff" font-family="monospace" font-size="26" font-weight="bold" text-anchor="middle">AEL PARTICLES LAB <tspan fill="#00ffcc" font-size="14">v3.0</tspan></text>
+  <text x="400" y="125" fill="#ffffff" font-family="monospace" font-size="26" font-weight="bold" text-anchor="middle">AEL PARTICLES LAB <tspan fill="#00ffcc" font-size="14">v3.2</tspan></text>
   <text x="400" y="150" fill="#9ab3e6" font-family="monospace" font-size="11" text-anchor="middle">Sovereign Edition — High-Density Particle Simulation Engine</text>
 
   <!-- Stats row: 4 cards -->
