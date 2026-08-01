@@ -1,5 +1,8 @@
-// System Clock
-setInterval(() => {
+(function() {
+  'use strict';
+
+  // System Clock
+  setInterval(() => {
   const now = new Date();
   document.getElementById('sys-time').innerText = `SYS_TIME: ${now.toTimeString().split(' ')[0]}`;
 }, 1000);
@@ -1034,3 +1037,4 @@ window.onload = () => {
   if (targetEl) selectParticle(targetId, targetEl);
   animate();
 };
+})();
