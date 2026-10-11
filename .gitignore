@@ -13,3 +13,6 @@ Thumbs.db
 # Project
 *.log
 .env
+
+# AEL backup files
+*.aelbak
